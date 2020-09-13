@@ -79,7 +79,6 @@ export default {
       let response = await getGoalTemp();
       this.goalTemp = response.data.result;
       this.setTemp = response.data.result;
-      console.log(this.setTemp)
     } catch (err) {
       this.goalTempErrMsg = `Failed to get last set temperature. ${err}`;
       console.error(this.goalTempErrMsg);
