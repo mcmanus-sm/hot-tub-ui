@@ -1,8 +1,6 @@
-# hot-tub-ui
+# gg-hot-tub-ui-vue3
 
 > Controls the GG hot tub!
-
-## Build Setup
 
 ``` bash
 # install dependencies
@@ -14,6 +12,3 @@ npm run dev
 # build for production with minification
 npm run build
 ```
-
-For detailed explanation on how things work, consult the [docs for vue-loader](http://vuejs.github.io/vue-loader).
-"# hot-tub-ui" 

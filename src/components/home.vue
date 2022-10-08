@@ -1,47 +1,3 @@
-<template>
-  <div>
-    <p class="header">Welcome to the GG Hot Tub!</p>
-    <div v-if="isLoading">
-      <p class="loading-text">Loading...</p>
-      <img src="../assets/loading-1.gif">
-    </div>
-    <div v-else>
-      <p v-if="!getTempError" class="status">The current hot tub temparture is {{ temp }}&#176;F</p>
-      <p v-else class="status">{{tempErrMsg}}</p>
-      <p v-if="!goalTempError" class="status">Your last set temp was {{ goalTemp }}&#176;F</p>
-      <p v-else class="status">{{goalTempErrMsg}}</p>
-      <p v-if="!getJetsError" class="status">The jets are {{jetsActive ? "ON" : "OFF"}}</p>
-      <p v-else class="status">{{jetsErrMsg}}</p>
-      <div class="temp-container">
-        <label class="set-temp">Set Temperature</label>
-        <div class="temp-input-container">
-          <input type="range" min="80" max="104" class="slider" v-model="setTemp">
-          {{setTemp}}
-        </div>
-        <input type="submit" class="temp-submit" @click="updateGoalTemp(setTemp)">
-        <img v-if="tempLoading && !tempSuccess" class="loader" src="../assets/circular-loader.gif">
-        <img v-else-if="tempSuccess" class="loader" src="../assets/thumbs-up.png">
-        <div v-else class="loader"></div>
-      </div>
-      <div class="jets-container">
-        <label class="jet-status">Toggle Jets</label>
-        <label class="switch">
-          <input :disabled="jetsLoading" v-model="setJets" @click="updateJets()" type="checkbox">
-          <span class="toggle round"></span>
-        </label>
-        <img v-if="jetsLoading && !jetsSuccess" class="loader" src="../assets/circular-loader.gif">
-        <img v-else-if="jetsSuccess" class="loader" src="../assets/thumbs-up.png">
-        <div v-else class="loader"></div>
-      </div>
-      <div v-if="toggleJetsError" class="status">{{toggleJetsErrMsg}}</div>
-    </div>
-    <p class="sub-header">Please forward all site grievances to the GG complaints department. ¯\_(ツ)_/¯ </p>
-    <div>
-      <img src="../assets/f.gif">
-    </div>
-  </div>
-</template>
-
 <script>
 import { getHotTubTemp, getGoalTemp, setHotTubTemp } from '../services/temp';
 import { getJetStatus, toggleJets } from '../services/jets';
@@ -52,8 +8,8 @@ export default {
     return {
       temp: null,
       goalTemp: null,
-      jetsActive: null,
       isLoading: true,
+      jetsActive: null,
       jetsLoading: false,
       jetsSuccess: false,
       tempLoading: false,
@@ -61,11 +17,6 @@ export default {
       updateIntervalMS: 3000,
       loaderTimeoutMS: 500,
       setTemp: null,
-      setJets: false,
-      getTempError: false,
-      getJetsError: false,
-      toggleJetsError: false,
-      goalTempError: false,
       tempErrMsg: ``,
       jetsErrMsg: ``,
       toggleJetsErrMsg: ``,
@@ -82,13 +33,18 @@ export default {
     } catch (err) {
       this.goalTempErrMsg = `Failed to get last set temperature. ${err}`;
       console.error(this.goalTempErrMsg);
-      this.goalTempError = true;
     }
     this.isLoading = false;
   },
   methods: {
     setHotTubTemp: setHotTubTemp,
     toggleJets: toggleJets,
+    resetAllErrors() {
+      this.tempErrMsg = ``;
+      this.jetsErrMsg = ``;
+      this.toggleJetsErrMsg = ``;
+      this.goalTempErrMsg = ``;
+    },
     async initializeTemps() {
       try {
         let response = await getHotTubTemp();
@@ -97,24 +53,20 @@ export default {
       } catch (err) {
         this.tempErrMsg = `Failed to get current temp. ${err}`;
         console.error(this.tempErrMsg);
-        this.getTempError = true;
       }
     },
     async initializeJets() {
       try {
         let response = await getJetStatus();
         this.jetsActive = response.data.result;
-        this.setJets = response.data.result;
         this.setupJetsInterval();
       } catch (err) {
         this.jetsErrMsg = `Failed to get jets status. ${err}`;
         console.error(this.jetsErrMsg);
-        this.getJetsError = true;
       }
     },
     setupTempInterval() {
-      let tempInterval;
-      tempInterval = setInterval(async () => {
+      let tempInterval = setInterval(async () => {
         try {
           let response = await getHotTubTemp();
           this.temp = response.data.result;
@@ -127,8 +79,7 @@ export default {
       return;
     },
     setupJetsInterval() {
-      let jetsInterval;
-      jetsInterval = setInterval(async () => {
+      let jetsInterval = setInterval(async () => {
         try {
           let response = await getJetStatus();
           this.jetsActive = response.data.result;
@@ -141,7 +92,7 @@ export default {
       return;
     },
     async updateGoalTemp(temp) {
-      this.goalTempError = false;
+      this.resetAllErrors();
       this.tempLoading = true;
       try {
         await setHotTubTemp(temp);
@@ -151,70 +102,142 @@ export default {
       } catch (err) {
         this.goalTempErrMsg = `Failed to update the goal temp. ${err}`;
         console.error(this.goalTempErrMsg);
-        this.goalTempError = true;
       }
       this.tempLoading = false;
     },
     async updateJets() {
+      this.resetAllErrors();
       this.jetsLoading = true;
-      this.toggleJetsError = false;
       try {
-        let response = await this.toggleJets();
+        const response = await this.toggleJets();
         this.jetsActive = response.data.result;
         this.jetsSuccess = true;
         setTimeout(() => { this.jetsSuccess = false }, this.loaderTimeoutMS);
       } catch (err) {
         this.toggleJetsErrMsg = `Failed to toggle the jets. ${err}`;
         console.error(this.toggleJetsErrMsg);
-        this.toggleJetsError = true;
       }
       this.jetsLoading = false;
     }
-  },
+  }
 }
 </script>
 
+<template>
+  <div>
+    <div class="header">
+      GG Hot Tub
+    </div>
+    <div v-if="isLoading">
+      <p class="loading-text">Loading...</p>
+    </div>
+    <div v-else class="info-container">
+      <p class="status">
+        Temp is <b>{{ temp }}&#176;F</b>
+        <br>
+      </p>
+      <p class="status">
+        Temp is set to <b>{{ goalTemp }}</b>&#176;F
+        <br>
+      </p>
+      <div class="temp-container">
+        <label class="set-temp">Temp: {{setTemp}}</label>
+        <div class="temp-input-container">
+          <input type="range" min="80" max="104" class="slider" v-model="setTemp">
+        </div>
+        <div class="temp-submit-container">
+          <button type="submit" class="temp-submit" @click="updateGoalTemp(setTemp)">Set Temp</button>
+          <img v-if="tempLoading && !tempSuccess" class="loader" src="../assets/circular-loader.gif">
+          <img v-else-if="tempSuccess" class="loader" src="../assets/thumbs-up.png">
+          <div v-else class="loader"></div>
+        </div>
+      </div>
+      <!-- <p class="status jets-container">
+        Jets are<span class="ml-half"><b>{{ jetsActive ? 'on' : 'off' }}</b></span>
+        <label class="switch" style="margin-left: 1rem;">
+          <input :disabled="jetsLoading" v-model="jetsActive" @click="updateJets()" type="checkbox">
+          <span class="toggle round"></span>
+          <img v-if="jetsLoading && !jetsSuccess" class="loader" src="../assets/circular-loader.gif">
+          <img v-else-if="jetsSuccess" class="loader" src="../assets/thumbs-up.png">
+          <div v-else class="loader"></div>
+        </label>
+        <div v-if="jetsLoading" class="loader"></div>
+      </p> -->
+      <div v-if="toggleJetsErrMsg !== ''" class="status">{{toggleJetsErrMsg}}</div>
+      <div v-if="tempErrMsg !== ''" class="status">{{tempErrMsg}}</div>
+      <div v-if="goalTempErrMsg !== ''" class="status">{{goalTempErrMsg}}</div>
+      <div v-if="jetsErrMsg !== ''" class="status">{{jetsErrMsg}}</div>
+    </div>
+    <div class="header">
+      <img src="../assets/relaxing.gif" style="max-width: 100%;">
+    </div>
+  </div>
+</template>
+
 <style lang="scss">
+.ml-half {
+  margin-left: 0.5rem;
+}
+.error-container {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+.info-container {
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+}
 .jets-container {
   display: flex;
   flex-flow: row nowrap;
   width: 100%;
   justify-content: center;
   align-items: center;
-  margin-top: 3%;
-  margin-bottom: 3%;
-  margin-left: 2%;
 }
 .loader {
   height: 30px;
   width: 30px;
-  margin-left: 1%;
+  margin-left: 1rem;
 }
 .loading-text {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
   font-weight: bold;
   font-size: 32px;
 }
 .temp-container {
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: column wrap;
   width: 100%;
   margin-top: 3%;
   margin-bottom: 3%;
   justify-content: center;
   align-items: center;
 }
+.temp-submit-container {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  margin-left: 2.6rem
+}
 .temp-input-container {
   display: flex;
   flex-flow: row nowrap;
-  width: 15%;
+  width: 90%;
   justify-content: center;
   align-items: center;
-  margin-left: 3%;
-  margin-right: 3%;
+  margin-bottom: 1rem;
 }
 .header {
-  font-size: 64px;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  font-size: 3rem;
   font-weight: bold;
+  margin-top: 2rem;
 }
 .sub-header {
   font-size: 24px;
@@ -222,6 +245,7 @@ export default {
 }
 .set-temp {
   font-size: 32px;
+  margin-bottom: 0.5rem;
 }
 .temp-input {
   font-size: 32px;
@@ -229,7 +253,12 @@ export default {
   margin-right: 1%;
 }
 .temp-submit {
-  font-size: 32px;
+  font-size: 28px;
+  background-color: rgb(65, 65, 231);
+  color: #d3d3d3;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.5);
 }
 .jet-status {
   font-size: 32px;
@@ -238,6 +267,7 @@ export default {
   font-size: 32px;
   margin: 3%;
 }
+
 .slider {
   -webkit-appearance: none;
   width: 100%;
@@ -247,14 +277,17 @@ export default {
   opacity: 0.7;
   -webkit-transition: .2s;
   transition: opacity .2s;
+  border-radius: 5px;
+  box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.5);
 }
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 35px;
-  height: 35px;
-  background: blue;
+  width: 45px;
+  height: 45px;
+  background: rgb(72, 157, 255);
   cursor: pointer;
+  border-radius: 50px;
 }
 .switch {
   position: relative;
@@ -307,4 +340,41 @@ input:checked + .toggle:before {
 .toggle.round:before {
   border-radius: 50%;
 }
+
+.slider.round:before {
+  width: 20px;
+  height: 20px;
+  top: 16.7%;
+  left: 5%;
+}
+.off {
+  display: block;
+  color: white;
+  position: absolute;
+  transform: translate(-110%,-50%);
+  top: 50%;
+  left: 50%;
+  font-size: 14px;
+}
+.on {
+  display: none;
+  color: white;
+  position: absolute;
+  transform: translate(50%,-50%);
+  top: 50%;
+  left: 45%;
+  font-size: 14px;
+}
+input:checked + .slider .off {
+  display: none;
+}
+input:checked + .slider:before {
+  -webkit-transform: translateX(98px);
+  -ms-transform: translateX(98px);
+  transform: translateX(88px);
+}
+input:checked + .slider .on {
+  display: block;
+}
 </style>
+
