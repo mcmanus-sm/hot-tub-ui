@@ -1,5 +1,5 @@
 <script>
-import { getHotTubTemp, getGoalTemp, setHotTubTemp } from '../services/temp';
+import { getHotTubTemp, getTargetTemp, setHotTubTemp } from '../services/temp';
 import { getJetStatus, toggleJets } from '../services/jets';
 
 export default {
@@ -7,7 +7,7 @@ export default {
   data () {
     return {
       temp: null,
-      goalTemp: null,
+      targetTemp: null,
       isLoading: true,
       jetsActive: null,
       jetsLoading: false,
@@ -16,24 +16,25 @@ export default {
       tempSuccess: false,
       updateIntervalMS: 3000,
       loaderTimeoutMS: 500,
-      setTemp: null,
       tempErrMsg: ``,
       jetsErrMsg: ``,
       toggleJetsErrMsg: ``,
-      goalTempErrMsg: ``,
+      targetTempErrMsg: ``
     }
   },
   async created() {
     this.initializeTemps();
     this.initializeJets();
     try {
-      let response = await getGoalTemp();
-      this.goalTemp = response.data.result;
-      this.setTemp = response.data.result;
+      let response = await getTargetTemp();
+      this.targetTemp = response.data.result;
     } catch (err) {
-      this.goalTempErrMsg = `Failed to get last set temperature. ${err}`;
-      console.error(this.goalTempErrMsg);
+      this.targetTempErrMsg = `Failed to get last set temperature. Full error in browser console. ${err}`;
+      console.error(this.targetTempErrMsg);
     }
+    this.$watch('targetTemp', (newTemp) => {
+      this.updateTargetTemp(newTemp);
+    });
     this.isLoading = false;
   },
   methods: {
@@ -43,7 +44,7 @@ export default {
       this.tempErrMsg = ``;
       this.jetsErrMsg = ``;
       this.toggleJetsErrMsg = ``;
-      this.goalTempErrMsg = ``;
+      this.targetTempErrMsg = ``;
     },
     async initializeTemps() {
       try {
@@ -51,7 +52,7 @@ export default {
         this.temp = response.data.result;
         this.setupTempInterval();
       } catch (err) {
-        this.tempErrMsg = `Failed to get current temp. ${err}`;
+        this.tempErrMsg = `Failed to get current temp. Full error in browser console. ${err}`;
         console.error(this.tempErrMsg);
       }
     },
@@ -61,7 +62,7 @@ export default {
         this.jetsActive = response.data.result;
         this.setupJetsInterval();
       } catch (err) {
-        this.jetsErrMsg = `Failed to get jets status. ${err}`;
+        this.jetsErrMsg = `Failed to get jets status. Full error in browser console. ${err}`;
         console.error(this.jetsErrMsg);
       }
     },
@@ -70,8 +71,10 @@ export default {
         try {
           let response = await getHotTubTemp();
           this.temp = response.data.result;
+          response = await getTargetTemp();
+          this.targetTemp = response.data.result;
         } catch (err) {
-          this.tempErrMsg = `Failed to get current temp. ${err}`;
+          this.tempErrMsg = `Failed to get current and target temp. Full error in browser console. ${err}`;
           console.error(this.tempErrMsg);
           clearInterval(tempInterval);
         }
@@ -84,24 +87,21 @@ export default {
           let response = await getJetStatus();
           this.jetsActive = response.data.result;
         } catch (err) {
-          this.jetsErrMsg = `Failed to get jets status. ${err}`;
+          this.jetsErrMsg = `Failed to get jets status. Full error in browser console. ${err}`;
           console.error(this.jetsErrMsg);
           clearInterval(jetsInterval);
         }
       }, this.updateIntervalMS);
       return;
     },
-    async updateGoalTemp(temp) {
+    async updateTargetTemp(temp) {
       this.resetAllErrors();
       this.tempLoading = true;
       try {
         await setHotTubTemp(temp);
-        this.goalTemp = temp;
-        this.tempSuccess = true;
-        setTimeout(() => { this.tempSuccess = false }, this.loaderTimeoutMS);
       } catch (err) {
-        this.goalTempErrMsg = `Failed to update the goal temp. ${err}`;
-        console.error(this.goalTempErrMsg);
+        this.targetTempErrMsg = `Failed to update the temp. Full error in browser console. ${err}`;
+        console.error(this.targetTempErrMsg);
       }
       this.tempLoading = false;
     },
@@ -114,12 +114,12 @@ export default {
         this.jetsSuccess = true;
         setTimeout(() => { this.jetsSuccess = false }, this.loaderTimeoutMS);
       } catch (err) {
-        this.toggleJetsErrMsg = `Failed to toggle the jets. ${err}`;
+        this.toggleJetsErrMsg = `Failed to toggle the jets. Full error in browser console. ${err}`;
         console.error(this.toggleJetsErrMsg);
       }
       this.jetsLoading = false;
     }
-  }
+  },
 }
 </script>
 
@@ -137,19 +137,13 @@ export default {
         <br>
       </p>
       <p class="status">
-        Temp is set to <b>{{ goalTemp }}</b>&#176;F
+        Temp is set to <b>{{ targetTemp }}</b>&#176;F
         <br>
       </p>
       <div class="temp-container">
-        <label class="set-temp">Temp: {{setTemp}}</label>
-        <div class="temp-input-container">
-          <input type="range" min="80" max="104" class="slider" v-model="setTemp">
-        </div>
-        <div class="temp-submit-container">
-          <button type="submit" class="temp-submit" @click="updateGoalTemp(setTemp)">Set Temp</button>
-          <img v-if="tempLoading && !tempSuccess" class="loader" src="../assets/circular-loader.gif">
-          <img v-else-if="tempSuccess" class="loader" src="../assets/thumbs-up.png">
-          <div v-else class="loader"></div>
+        <div class="plus-minus-container">
+          <div @click="targetTemp-=1" class="minus-icon plus-minus-icons">&#8722;</div>
+          <div @click="targetTemp+=1" class="plus-icon plus-minus-icons">&#43;</div>
         </div>
       </div>
       <!-- <p class="status jets-container">
@@ -165,7 +159,7 @@ export default {
       </p> -->
       <div v-if="toggleJetsErrMsg !== ''" class="status">{{toggleJetsErrMsg}}</div>
       <div v-if="tempErrMsg !== ''" class="status">{{tempErrMsg}}</div>
-      <div v-if="goalTempErrMsg !== ''" class="status">{{goalTempErrMsg}}</div>
+      <div v-if="targetTempErrMsg !== ''" class="status">{{targetTempErrMsg}}</div>
       <div v-if="jetsErrMsg !== ''" class="status">{{jetsErrMsg}}</div>
     </div>
     <div class="header">
@@ -177,6 +171,32 @@ export default {
 <style lang="scss">
 .ml-half {
   margin-left: 0.5rem;
+}
+.plus-minus-container {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  width: 60%;
+}
+.plus-minus-icons {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-around;
+  align-items: center;
+  width: 70%;
+  font-size: 90px;
+  border: 1px solid gray;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  background: rgb(201, 201, 201);
+}
+.plus-icon {
+  color: rgb(255, 25, 17);
+  font-weight: bolder;
+}
+.minus-icon {
+  color: rgb(44, 135, 255);
+  font-weight: bolder;
 }
 .error-container {
   display: flex;
@@ -216,12 +236,6 @@ export default {
   margin-bottom: 3%;
   justify-content: center;
   align-items: center;
-}
-.temp-submit-container {
-  display: flex;
-  flex-flow: row nowrap;
-  align-items: center;
-  margin-left: 2.6rem
 }
 .temp-input-container {
   display: flex;
